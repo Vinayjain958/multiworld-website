@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>Multiworld | Admin Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Sora:wght@400;600;700&display=swap" rel="stylesheet"/>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Firebase Compat SDKs (Works locally without a server) -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        h1, h2, h3 { font-family: 'Sora', sans-serif; }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.95);
+            border: 1px solid rgba(229, 231, 235, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen flex items-center justify-center p-6">
+
+    <!-- Login View -->
+    <div id="loginView" class="w-full max-w-md glass-card rounded-2xl p-8">
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-bold text-[#00453d] mb-2">Staff Login</h1>
+            <p class="text-gray-500">Access the Multiworld dashboard</p>
+        </div>
+        <form id="loginForm" class="flex flex-col gap-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                <input type="email" id="adminEmail" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#00453d] outline-none">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                <input type="password" id="adminPassword" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#00453d] outline-none">
+            </div>
+            <div id="loginError" class="text-red-600 text-sm hidden"></div>
+            <button type="submit" id="loginSubmitBtn" class="bg-[#00453d] text-white py-3 rounded-lg font-semibold hover:opacity-90 transition-opacity mt-2">Sign In</button>
+        </form>
+        <div class="mt-6 text-center">
+            <a href="index.html" class="text-sm text-gray-500 hover:text-[#00453d]">&larr; Back to Website</a>
+        </div>
+    </div>
+
+    <!-- Dashboard View (Hidden by default) -->
+    <div id="dashboardView" class="w-full max-w-6xl glass-card rounded-2xl p-8 hidden items-start self-start mt-10">
+        <div class="flex justify-between items-center mb-8 border-b border-gray-200 pb-4">
+            <h1 class="text-3xl font-bold text-[#00453d]">Admin Dashboard</h1>
+            <div class="flex gap-4 items-center">
+                <a href="index.html" class="text-sm text-[#00453d] font-medium hover:underline">View Website</a>
+                <button id="logoutBtn" class="text-red-600 font-semibold hover:opacity-80 px-4 py-2 border border-red-200 rounded-lg bg-red-50 transition-colors">Logout</button>
+            </div>
+        </div>
+        
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- Add Laptop Form -->
+            <div class="lg:col-span-1 bg-white p-6 rounded-xl border border-gray-200 h-fit shadow-sm">
+                <h3 class="text-xl font-semibold mb-4 text-gray-900">Add New Laptop</h3>
+                <form id="addLaptopForm" class="flex flex-col gap-4">
+                    <div>
+                        <label class="block text-xs font-medium text-gray-500 mb-1">Title</label>
+                        <input type="text" id="laptopTitle" placeholder="e.g. ThinkPad T14" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-[#00453d] outline-none text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-500 mb-1">Category</label>
+                        <select id="laptopCategory" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-[#00453d] outline-none text-sm">
+                            <option value="imported">Premium Imported</option>
+                            <option value="indian">Quality Indian</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-500 mb-1">Specifications (One per line)</label>
+                        <textarea id="laptopDesc" placeholder="- 16GB RAM&#10;- 512GB SSD&#10;- Core i5" required rows="4" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-[#00453d] outline-none text-sm"></textarea>
+                    </div>
+                    <div class="flex gap-3">
+                        <div class="w-1/2">
+                            <label class="block text-xs font-medium text-gray-500 mb-1">Original Price (₹)</label>
+                            <input type="number" id="laptopOriginalPrice" placeholder="Optional" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-[#00453d] outline-none text-sm">
+                        </div>
+                        <div class="w-1/2">
+                            <label class="block text-xs font-medium text-gray-500 mb-1">Sale Price (₹)</label>
+                            <input type="number" id="laptopSalePrice" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-[#00453d] outline-none text-sm">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-500 mb-1">Image (Will be auto-compressed)</label>
+                        <input type="file" id="laptopImage" accept="image/*" required class="w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-gray-50 file:text-[#00453d] hover:file:bg-gray-100">
+                    </div>
+                    <button type="submit" id="addLaptopSubmitBtn" class="bg-[#00453d] text-white py-3 rounded-lg font-semibold hover:opacity-90 transition-opacity mt-2">Add to Stock</button>
+                </form>
+            </div>
+            
+            <!-- Manage Laptops List -->
+            <div class="lg:col-span-2">
+                <h3 class="text-xl font-semibold mb-4 text-gray-900">Current Stock</h3>
+                <div class="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+                    <div class="overflow-y-auto max-h-[600px]">
+                        <table class="w-full text-left border-collapse">
+                            <thead class="bg-gray-50 sticky top-0 z-10">
+                                <tr class="border-b border-gray-200 text-sm text-gray-500">
+                                    <th class="py-3 px-4 font-semibold">Image</th>
+                                    <th class="py-3 px-4 font-semibold">Title</th>
+                                    <th class="py-3 px-4 font-semibold">Price</th>
+                                    <th class="py-3 px-4 font-semibold text-right">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="adminStockList">
+                                <!-- Admin items injected here -->
+                            </tbody>
+                        </table>
+                        <div id="adminStockLoading" class="text-center py-8 text-gray-500 text-sm">Loading stock...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase Logic -->
+    <script>
+        const firebaseConfig = {
+          apiKey: "AIzaSyD2nYpuxzjeqc4g4hcn-AbBpqooCXy-B-Q",
+          authDomain: "multiworld-aea3b.firebaseapp.com",
+          projectId: "multiworld-aea3b",
+          storageBucket: "multiworld-aea3b.firebasestorage.app",
+          messagingSenderId: "1073142364188",
+          appId: "1:1073142364188:web:ebed8c743de41992d3c7d9"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        // UI Elements
+        const loginView = document.getElementById('loginView');
+        const dashboardView = document.getElementById('dashboardView');
+        const body = document.body;
+        
+        // --- Auth State Listener ---
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                // Logged in
+                loginView.classList.add('hidden');
+                dashboardView.classList.remove('hidden');
+                body.classList.remove('items-center'); // Push dashboard to top
+                loadStock();
+            } else {
+                // Not logged in
+                loginView.classList.remove('hidden');
+                dashboardView.classList.add('hidden');
+                body.classList.add('items-center');
+            }
+        });
+
+        // --- Login Logic ---
+        const loginForm = document.getElementById('loginForm');
+        const loginError = document.getElementById('loginError');
+        const loginSubmitBtn = document.getElementById('loginSubmitBtn');
+
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('adminEmail').value;
+            const password = document.getElementById('adminPassword').value;
+            loginError.classList.add('hidden');
+            loginSubmitBtn.textContent = "Signing In...";
+            
+            try {
+                await auth.signInWithEmailAndPassword(email, password);
+                loginForm.reset();
+            } catch (error) {
+                loginError.textContent = "Invalid email or password.";
+                loginError.classList.remove('hidden');
+            }
+            loginSubmitBtn.textContent = "Sign In";
+        });
+
+        document.getElementById('logoutBtn').addEventListener('click', () => {
+            auth.signOut();
+        });
+
+        // --- Base64 Compression ---
+        function compressImage(file, maxWidth = 800) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.src = event.target.result;
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        let width = img.width;
+                        let height = img.height;
+                        if (width > maxWidth) {
+                            height = Math.round((height * maxWidth) / width);
+                            width = maxWidth;
+                        }
+                        canvas.width = width;
+                        canvas.height = height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, width, height);
+                        const dataUrl = canvas.toDataURL('image/jpeg', 0.7); // 70% quality JPEG
+                        resolve(dataUrl);
+                    };
+                };
+                reader.onerror = error => reject(error);
+            });
+        }
+
+        // --- Admin Dashboard Logic ---
+        const addLaptopForm = document.getElementById('addLaptopForm');
+        const addLaptopSubmitBtn = document.getElementById('addLaptopSubmitBtn');
+        const adminStockList = document.getElementById('adminStockList');
+        const adminStockLoading = document.getElementById('adminStockLoading');
+
+        addLaptopForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            addLaptopSubmitBtn.textContent = "Adding to database...";
+            addLaptopSubmitBtn.disabled = true;
+
+            try {
+                const title = document.getElementById('laptopTitle').value;
+                const category = document.getElementById('laptopCategory').value;
+                const description = document.getElementById('laptopDesc').value;
+                const originalPrice = document.getElementById('laptopOriginalPrice').value;
+                const salePrice = document.getElementById('laptopSalePrice').value;
+                const file = document.getElementById('laptopImage').files[0];
+
+                const base64Image = await compressImage(file);
+
+                await db.collection("laptops").add({
+                    title,
+                    category,
+                    description,
+                    originalPrice: originalPrice ? Number(originalPrice) : null,
+                    salePrice: Number(salePrice),
+                    imageUrl: base64Image,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                
+                addLaptopForm.reset();
+                await loadStock();
+                alert("Laptop added successfully!");
+            } catch (error) {
+                console.error("Error adding document: ", error);
+                alert("Error adding laptop. See console.");
+            }
+            
+            addLaptopSubmitBtn.textContent = "Add to Stock";
+            addLaptopSubmitBtn.disabled = false;
+        });
+
+        async function loadStock() {
+            adminStockLoading.classList.remove('hidden');
+            adminStockList.innerHTML = '';
+            
+            try {
+                const snapshot = await db.collection("laptops").orderBy("createdAt", "desc").get();
+                
+                if (snapshot.empty) {
+                    adminStockList.innerHTML = '<tr><td colspan="4" class="text-center py-6 text-sm text-gray-500">No laptops in stock. Add one above!</td></tr>';
+                    adminStockLoading.classList.add('hidden');
+                    return;
+                }
+
+                snapshot.forEach(doc => {
+                    const laptop = doc.data();
+                    const tr = document.createElement('tr');
+                    tr.className = "border-b border-gray-100 hover:bg-gray-50 transition-colors";
+                    tr.innerHTML = `
+                        <td class="py-3 px-4"><img src="${laptop.imageUrl}" class="w-14 h-14 object-cover rounded-lg shadow-sm border border-gray-200"></td>
+                        <td class="py-3 px-4 text-sm font-medium text-gray-900">${laptop.title}</td>
+                        <td class="py-3 px-4 text-sm text-[#00453d] font-bold">₹${laptop.salePrice}</td>
+                        <td class="py-3 px-4 text-right">
+                            <button class="delete-btn text-red-600 hover:opacity-80 text-sm font-semibold px-3 py-1.5 bg-red-50 border border-red-100 rounded-lg transition-opacity" data-id="${doc.id}">Delete</button>
+                        </td>
+                    `;
+                    adminStockList.appendChild(tr);
+                });
+
+                document.querySelectorAll('.delete-btn').forEach(btn => {
+                    btn.addEventListener('click', async (e) => {
+                        if(confirm("Are you sure you want to delete this laptop?")) {
+                            const id = e.target.getAttribute('data-id');
+                            try {
+                                e.target.textContent = "Deleting...";
+                                e.target.disabled = true;
+                                await db.collection("laptops").doc(id).delete();
+                                await loadStock();
+                            } catch (err) {
+                                console.error(err);
+                                alert("Error deleting laptop.");
+                                e.target.textContent = "Delete";
+                                e.target.disabled = false;
+                            }
+                        }
+                    });
+                });
+
+                adminStockLoading.classList.add('hidden');
+            } catch (e) {
+                console.error(e);
+                adminStockLoading.textContent = "Error loading stock data.";
+            }
+        }
+    </script>
+</body>
+</html>
