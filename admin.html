@@ -138,22 +138,70 @@
         const loginView = document.getElementById('loginView');
         const dashboardView = document.getElementById('dashboardView');
         const body = document.body;
-        
-        // --- Auth State Listener ---
+
+        // --- Session Inactivity Timeout (2 hours) ---
+        const SESSION_TIMEOUT_MS = 2 * 60 * 60 * 1000; // 2 hours
+        let inactivityTimer = null;
+
+        function resetInactivityTimer() {
+            clearTimeout(inactivityTimer);
+            inactivityTimer = setTimeout(() => {
+                if (auth.currentUser) {
+                    auth.signOut();
+                    alert("You have been logged out due to inactivity.");
+                }
+            }, SESSION_TIMEOUT_MS);
+        }
+
+        // Reset timer on any user interaction
+        ['click', 'keydown', 'mousemove', 'scroll'].forEach(event => {
+            document.addEventListener(event, () => {
+                if (auth.currentUser) resetInactivityTimer();
+            });
+        });
+
+        // --- Auth State Listener (with email verification check) ---
         auth.onAuthStateChanged(user => {
             if (user) {
-                // Logged in
+                // Check if email is verified
+                if (!user.emailVerified) {
+                    loginView.classList.remove('hidden');
+                    dashboardView.classList.add('hidden');
+                    body.classList.add('items-center');
+                    
+                    const loginError = document.getElementById('loginError');
+                    loginError.textContent = "Your email is not verified. Please check your inbox and verify your email first.";
+                    loginError.classList.remove('hidden');
+                    
+                    // Send verification email automatically
+                    user.sendEmailVerification().then(() => {
+                        loginError.textContent = "Your email is not verified. A verification link has been sent to " + user.email + ". Please verify and try again.";
+                    }).catch(() => {});
+                    
+                    auth.signOut(); // Force sign out until verified
+                    return;
+                }
+
+                // Verified user — show dashboard
                 loginView.classList.add('hidden');
                 dashboardView.classList.remove('hidden');
-                body.classList.remove('items-center'); // Push dashboard to top
+                body.classList.remove('items-center');
+                resetInactivityTimer();
                 loadStock();
             } else {
                 // Not logged in
+                clearTimeout(inactivityTimer);
                 loginView.classList.remove('hidden');
                 dashboardView.classList.add('hidden');
                 body.classList.add('items-center');
             }
         });
+
+        // --- Login Rate Limiting ---
+        const MAX_LOGIN_ATTEMPTS = 5;
+        const LOCKOUT_DURATION_MS = 60 * 1000; // 60 seconds
+        let loginAttempts = 0;
+        let lockoutUntil = 0;
 
         // --- Login Logic ---
         const loginForm = document.getElementById('loginForm');
@@ -162,24 +210,47 @@
 
         loginForm.addEventListener('submit', async (e) => {
             e.preventDefault();
+
+            // Check if currently locked out
+            const now = Date.now();
+            if (now < lockoutUntil) {
+                const secondsLeft = Math.ceil((lockoutUntil - now) / 1000);
+                loginError.textContent = `Too many failed attempts. Please wait ${secondsLeft} seconds.`;
+                loginError.classList.remove('hidden');
+                return;
+            }
+
             const email = document.getElementById('adminEmail').value;
             const password = document.getElementById('adminPassword').value;
             loginError.classList.add('hidden');
             loginSubmitBtn.textContent = "Signing In...";
+            loginSubmitBtn.disabled = true;
             
             try {
-                // Fix: Force session persistence so it logs out when browser closes
+                // Force session persistence so it logs out when browser closes
                 await auth.setPersistence(firebase.auth.Auth.Persistence.SESSION);
                 await auth.signInWithEmailAndPassword(email, password);
                 loginForm.reset();
+                loginAttempts = 0; // Reset on success
             } catch (error) {
-                loginError.textContent = "Invalid email or password.";
+                loginAttempts++;
+                
+                if (loginAttempts >= MAX_LOGIN_ATTEMPTS) {
+                    lockoutUntil = Date.now() + LOCKOUT_DURATION_MS;
+                    loginError.textContent = `Too many failed attempts. Account locked for 60 seconds.`;
+                    loginAttempts = 0; // Reset counter for next lockout cycle
+                } else {
+                    const remaining = MAX_LOGIN_ATTEMPTS - loginAttempts;
+                    loginError.textContent = `Invalid email or password. ${remaining} attempt${remaining === 1 ? '' : 's'} remaining.`;
+                }
                 loginError.classList.remove('hidden');
             }
             loginSubmitBtn.textContent = "Sign In";
+            loginSubmitBtn.disabled = false;
         });
 
         document.getElementById('logoutBtn').addEventListener('click', () => {
+            clearTimeout(inactivityTimer);
             auth.signOut();
         });
 
@@ -212,6 +283,14 @@
         }
 
         // --- Admin Dashboard Logic ---
+        function sanitizeHTML(str) {
+            if (typeof str !== 'string') return '';
+            return str.replace(/[&<>"']/g, function(match) {
+                const escape = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+                return escape[match];
+            });
+        }
+
         const addLaptopForm = document.getElementById('addLaptopForm');
         const addLaptopSubmitBtn = document.getElementById('addLaptopSubmitBtn');
         const adminStockList = document.getElementById('adminStockList');
@@ -223,21 +302,60 @@
             addLaptopSubmitBtn.disabled = true;
 
             try {
-                const title = document.getElementById('laptopTitle').value;
-                const category = document.getElementById('laptopCategory').value;
-                const description = document.getElementById('laptopDesc').value;
+                const title = document.getElementById('laptopTitle').value.trim();
+                const category = document.getElementById('laptopCategory').value.trim();
+                const description = document.getElementById('laptopDesc').value.trim();
                 const originalPrice = document.getElementById('laptopOriginalPrice').value;
                 const salePrice = document.getElementById('laptopSalePrice').value;
                 const file = document.getElementById('laptopImage').files[0];
 
+                // Validate empty fields
+                if (!title || !category || !description || !salePrice) {
+                    alert("Please fill in all required fields.");
+                    addLaptopSubmitBtn.textContent = "Add to Stock";
+                    addLaptopSubmitBtn.disabled = false;
+                    return;
+                }
+
+                // Validate prices
+                const parsedSalePrice = Number(salePrice);
+                const parsedOriginalPrice = originalPrice ? Number(originalPrice) : null;
+                
+                if (isNaN(parsedSalePrice) || parsedSalePrice <= 0) {
+                    alert("Please enter a valid sale price.");
+                    addLaptopSubmitBtn.textContent = "Add to Stock";
+                    addLaptopSubmitBtn.disabled = false;
+                    return;
+                }
+                
+                if (parsedOriginalPrice !== null && (isNaN(parsedOriginalPrice) || parsedOriginalPrice <= 0)) {
+                    alert("Please enter a valid original price.");
+                    addLaptopSubmitBtn.textContent = "Add to Stock";
+                    addLaptopSubmitBtn.disabled = false;
+                    return;
+                }
+
+                // Sanitize string inputs to prevent XSS
+                const sanitizedTitle = sanitizeHTML(title);
+                const sanitizedCategory = sanitizeHTML(category);
+                const sanitizedDescription = sanitizeHTML(description);
+
+                // Restrict file size to 5MB
+                if (file && file.size > 5 * 1024 * 1024) {
+                    alert("File is too large! Please select an image under 5MB.");
+                    addLaptopSubmitBtn.textContent = "Add to Stock";
+                    addLaptopSubmitBtn.disabled = false;
+                    return;
+                }
+
                 const base64Image = await compressImage(file);
 
                 await db.collection("laptops").add({
-                    title,
-                    category,
-                    description,
-                    originalPrice: originalPrice ? Number(originalPrice) : null,
-                    salePrice: Number(salePrice),
+                    title: sanitizedTitle,
+                    category: sanitizedCategory,
+                    description: sanitizedDescription,
+                    originalPrice: parsedOriginalPrice,
+                    salePrice: parsedSalePrice,
                     imageUrl: base64Image,
                     createdAt: firebase.firestore.FieldValue.serverTimestamp()
                 });
@@ -271,10 +389,14 @@
                     const laptop = doc.data();
                     const tr = document.createElement('tr');
                     tr.className = "border-b border-gray-100 hover:bg-gray-50 transition-colors";
+                    // Sanitize all DB values before rendering to prevent stored XSS
+                    const safeTitle = sanitizeHTML(laptop.title || '');
+                    const safePrice = sanitizeHTML(String(laptop.salePrice || ''));
+                    const safeImage = sanitizeHTML(laptop.imageUrl || '');
                     tr.innerHTML = `
-                        <td class="py-3 px-4"><img src="${laptop.imageUrl}" class="w-14 h-14 object-cover rounded-lg shadow-sm border border-gray-200"></td>
-                        <td class="py-3 px-4 text-sm font-medium text-gray-900">${laptop.title}</td>
-                        <td class="py-3 px-4 text-sm text-[#00453d] font-bold">₹${laptop.salePrice}</td>
+                        <td class="py-3 px-4"><img src="${safeImage}" class="w-14 h-14 object-cover rounded-lg shadow-sm border border-gray-200"></td>
+                        <td class="py-3 px-4 text-sm font-medium text-gray-900">${safeTitle}</td>
+                        <td class="py-3 px-4 text-sm text-[#00453d] font-bold">₹${safePrice}</td>
                         <td class="py-3 px-4 text-right">
                             <button type="button" class="delete-btn text-red-600 hover:opacity-80 text-sm font-semibold px-3 py-1.5 bg-red-50 border border-red-100 rounded-lg transition-opacity" data-id="${doc.id}">Delete</button>
                         </td>
