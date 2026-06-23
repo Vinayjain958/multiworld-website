@@ -577,6 +577,7 @@
                 snapshot.forEach(doc => {
                     allLaptops.push({ id: doc.id, ...doc.data() });
                 });
+                stockLoading.style.display = 'none';
                 renderStock('all');
             } catch (e) {
                 console.error("Error loading stock:", e);
@@ -599,34 +600,34 @@
             }
 
             filtered.forEach(laptop => {
-                const descList = laptop.description.split('\\n').map(line => line.trim() ? \`<li>\${line}</li>\` : '').join('');
-                const priceHTML = laptop.originalPrice ? \`<span class="text-sm text-secondary line-through mr-2">₹\${laptop.originalPrice}</span>\` : '';
+                const descList = laptop.description.split('\n').map(line => line.trim() ? `<li>${line}</li>` : '').join('');
+                const priceHTML = laptop.originalPrice ? `<span class="text-sm text-secondary line-through mr-2">₹${laptop.originalPrice}</span>` : '';
                 
                 const card = document.createElement('div');
                 card.className = "glass-card rounded-2xl overflow-hidden flex flex-col h-full fade-in-up visible transition-all duration-300 hover:shadow-xl";
-                card.innerHTML = \`
+                card.innerHTML = `
                     <div class="h-56 w-full bg-surface-container relative">
-                        <img src="\${laptop.imageUrl}" alt="\${laptop.title}" class="w-full h-full object-cover">
+                        <img src="${laptop.imageUrl}" alt="${laptop.title}" class="w-full h-full object-cover">
                         <div class="absolute top-4 left-4 bg-white/90 backdrop-blur text-primary text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider shadow-sm">
-                            \${laptop.category === 'imported' ? 'Premium Imported' : 'Quality Indian'}
+                            ${laptop.category === 'imported' ? 'Premium Imported' : 'Quality Indian'}
                         </div>
                     </div>
                     <div class="p-6 flex flex-col flex-grow bg-white">
-                        <h3 class="font-headline-sm text-on-surface mb-3 leading-tight">\${laptop.title}</h3>
+                        <h3 class="font-headline-sm text-on-surface mb-3 leading-tight">${laptop.title}</h3>
                         <ul class="text-sm text-secondary mb-6 flex-grow list-disc pl-4 space-y-1">
-                            \${descList}
+                            ${descList}
                         </ul>
                         <div class="mt-auto pt-4 border-t border-surface-variant">
                             <div class="flex items-end mb-4">
-                                \${priceHTML}
-                                <span class="text-2xl font-bold text-primary">₹\${laptop.salePrice}</span>
+                                ${priceHTML}
+                                <span class="text-2xl font-bold text-primary">₹${laptop.salePrice}</span>
                             </div>
-                            <a href="https://wa.me/919769228850?text=\${encodeURIComponent('Hi Multiworld, I am interested in the ' + laptop.title + ' listed for ₹' + laptop.salePrice + '. Is it still available?')}" target="_blank" class="w-full flex justify-center items-center gap-2 bg-[#25D366] text-white py-3 rounded-xl font-semibold hover:opacity-90 hover:-translate-y-1 transition-all shadow-lg shadow-[#25D366]/20">
+                            <a href="https://wa.me/919769228850?text=${encodeURIComponent('Hi Multiworld, I am interested in the ' + laptop.title + ' listed for ₹' + laptop.salePrice + '. Is it still available?')}" target="_blank" class="w-full flex justify-center items-center gap-2 bg-[#25D366] text-white py-3 rounded-xl font-semibold hover:opacity-90 hover:-translate-y-1 transition-all shadow-lg shadow-[#25D366]/20">
                                 <i class="fa-brands fa-whatsapp text-lg"></i> Enquire Now
                             </a>
                         </div>
                     </div>
-                \`;
+                `;
                 stockGrid.appendChild(card);
             });
         }
