@@ -168,6 +168,8 @@
             loginSubmitBtn.textContent = "Signing In...";
             
             try {
+                // Fix: Force session persistence so it logs out when browser closes
+                await auth.setPersistence(firebase.auth.Auth.Persistence.SESSION);
                 await auth.signInWithEmailAndPassword(email, password);
                 loginForm.reset();
             } catch (error) {
@@ -274,7 +276,7 @@
                         <td class="py-3 px-4 text-sm font-medium text-gray-900">${laptop.title}</td>
                         <td class="py-3 px-4 text-sm text-[#00453d] font-bold">₹${laptop.salePrice}</td>
                         <td class="py-3 px-4 text-right">
-                            <button class="delete-btn text-red-600 hover:opacity-80 text-sm font-semibold px-3 py-1.5 bg-red-50 border border-red-100 rounded-lg transition-opacity" data-id="${doc.id}">Delete</button>
+                            <button type="button" class="delete-btn text-red-600 hover:opacity-80 text-sm font-semibold px-3 py-1.5 bg-red-50 border border-red-100 rounded-lg transition-opacity" data-id="${doc.id}">Delete</button>
                         </td>
                     `;
                     adminStockList.appendChild(tr);
@@ -282,18 +284,21 @@
 
                 document.querySelectorAll('.delete-btn').forEach(btn => {
                     btn.addEventListener('click', async (e) => {
+                        e.preventDefault();
                         if(confirm("Are you sure you want to delete this laptop?")) {
-                            const id = e.target.getAttribute('data-id');
+                            const btnElement = e.currentTarget;
+                            const id = btnElement.getAttribute('data-id');
                             try {
-                                e.target.textContent = "Deleting...";
-                                e.target.disabled = true;
+                                btnElement.textContent = "Deleting...";
+                                btnElement.disabled = true;
                                 await db.collection("laptops").doc(id).delete();
                                 await loadStock();
+                                alert("Laptop deleted successfully.");
                             } catch (err) {
                                 console.error(err);
-                                alert("Error deleting laptop.");
-                                e.target.textContent = "Delete";
-                                e.target.disabled = false;
+                                alert("Error deleting laptop. Please check your internet or Firebase permissions.");
+                                btnElement.textContent = "Delete";
+                                btnElement.disabled = false;
                             }
                         }
                     });
