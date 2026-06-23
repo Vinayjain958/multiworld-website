@@ -160,29 +160,10 @@
             });
         });
 
-        // --- Auth State Listener (with email verification check) ---
+        // --- Auth State Listener ---
         auth.onAuthStateChanged(user => {
             if (user) {
-                // Check if email is verified
-                if (!user.emailVerified) {
-                    loginView.classList.remove('hidden');
-                    dashboardView.classList.add('hidden');
-                    body.classList.add('items-center');
-                    
-                    const loginError = document.getElementById('loginError');
-                    loginError.textContent = "Your email is not verified. Please check your inbox and verify your email first.";
-                    loginError.classList.remove('hidden');
-                    
-                    // Send verification email automatically
-                    user.sendEmailVerification().then(() => {
-                        loginError.textContent = "Your email is not verified. A verification link has been sent to " + user.email + ". Please verify and try again.";
-                    }).catch(() => {});
-                    
-                    auth.signOut(); // Force sign out until verified
-                    return;
-                }
-
-                // Verified user — show dashboard
+                // Logged in — show dashboard
                 loginView.classList.add('hidden');
                 dashboardView.classList.remove('hidden');
                 body.classList.remove('items-center');
